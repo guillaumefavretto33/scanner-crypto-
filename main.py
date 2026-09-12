@@ -132,4 +132,6 @@ def run_scanner():
         print("Scan terminé : Le marché est calme, aucune opportunité sûre détectée.")
 
 if __name__ == "__main__":
+    send_telegram_alert("✅ **TEST REUSSI** : Le bot communique parfaitement avec ton Telegram !")
     run_scanner()
+
