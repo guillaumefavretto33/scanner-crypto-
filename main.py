@@ -26,7 +26,7 @@ def send_telegram_alert(message):
         print(f"Erreur d'envoi Telegram : {e}")
 
 def run_scanner():
-    # Connexion à Gate.io (autorise les requêtes cloud GitHub)
+    # Connexion à Gate (autorise les requêtes cloud GitHub)
     exchange = ccxt.gate({'enableRateLimit': True})
     
     # Chargement des cryptos disponibles en USDT
@@ -132,6 +132,4 @@ def run_scanner():
         print("Scan terminé : Le marché est calme, aucune opportunité sûre détectée.")
 
 if __name__ == "__main__":
-    send_telegram_alert("✅ **TEST REUSSI** : Le bot communique parfaitement avec ton Telegram !")
     run_scanner()
-
