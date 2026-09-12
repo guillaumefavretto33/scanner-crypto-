@@ -27,7 +27,7 @@ def send_telegram_alert(message):
 
 def run_scanner():
     # Connexion à Gate.io (autorise les requêtes cloud GitHub)
-    exchange = ccxt.gateio({'enableRateLimit': True})
+    exchange = ccxt.gate({'enableRateLimit': True})
     
     # Chargement des cryptos disponibles en USDT
     markets = exchange.load_markets()
