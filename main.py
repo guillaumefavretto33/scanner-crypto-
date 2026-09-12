@@ -26,8 +26,8 @@ def send_telegram_alert(message):
         print(f"Erreur d'envoi Telegram : {e}")
 
 def run_scanner():
-    # Connexion à Binance (au lieu de Bybit pour éviter le blocage US de GitHub)
-    exchange = ccxt.binance({'enableRateLimit': True})
+    # Connexion à Gate.io (autorise les requêtes cloud GitHub)
+    exchange = ccxt.gateio({'enableRateLimit': True})
     
     # Chargement des cryptos disponibles en USDT
     markets = exchange.load_markets()
@@ -78,7 +78,7 @@ def run_scanner():
 
             # Lien TradingView direct
             clean_symbol = symbol.replace('/', '')
-            tv_link = f"https://www.tradingview.com/chart/?symbol=BINANCE:{clean_symbol}"
+            tv_link = f"https://www.tradingview.com/chart/?symbol=GATEIO:{clean_symbol}"
 
             # --- DÉTECTION DES OPPORTUNITÉS ---
             
