@@ -9,7 +9,7 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 def send_telegram_alert(message):
-    """Envoie une alerte claire sur Telegram."""
+    """Envoie une alerte sur Telegram."""
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         print("Erreur: TELEGRAM_TOKEN ou TELEGRAM_CHAT_ID absents des Secrets GitHub.")
         return
@@ -26,17 +26,17 @@ def send_telegram_alert(message):
         print(f"Erreur d'envoi Telegram : {e}")
 
 def run_scanner():
-    # Connexion à Gate (autorise les requêtes cloud GitHub)
-    exchange = ccxt.gate({'enableRateLimit': True})
+    # Connexion à OKX
+    exchange = ccxt.okx({'enableRateLimit': True})
     
-    # Chargement des cryptos disponibles en USDT
+    # Chargement des marchés disponibles
     markets = exchange.load_markets()
     usdt_pairs = [
         symbol for symbol, market in markets.items()
         if market['quote'] == 'USDT' and market.get('spot', False) and market.get('active', True)
     ]
     
-    # Récupération des 60 paires avec le plus gros volume
+    # Sélection des 60 paires USDT avec le plus gros volume
     tickers = exchange.fetch_tickers(usdt_pairs)
     sorted_pairs = sorted(
         tickers.items(), 
@@ -49,19 +49,16 @@ def run_scanner():
 
     for symbol in top_pairs:
         try:
-            # Récupération de l'historique des prix (250 bougies de 1 heure)
+            # Récupération des bougies de 1 heure
             ohlcv = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=250)
             if not ohlcv or len(ohlcv) < 200:
                 continue
 
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             
-            # --- CALCUL DES INDICATEURS ---
-            # 1. RSI (14) : Indique si c'est trop cher ou pas cher
+            # --- CALCULS DES INDICATEURS ---
             df['rsi'] = ta.momentum.rsi(df['close'], window=14)
-            # 2. EMA 200 : Donne la santé globale du marché
             df['ema200'] = ta.trend.ema_indicator(df['close'], window=200)
-            # 3. Volume moyen
             df['vol_sma'] = df['volume'].rolling(window=20).mean()
 
             last_rsi = df['rsi'].iloc[-1]
@@ -73,16 +70,15 @@ def run_scanner():
             if pd.isna(last_rsi) or pd.isna(last_ema):
                 continue
 
-            # Force des acheteurs/vendeurs
             vol_text = "🔥 Très fort" if last_vol > (avg_vol * 1.5) else ("📈 Bon" if last_vol > avg_vol else "⚪ Calme")
 
-            # Lien TradingView direct
+            # Lien direct TradingView ciblant OKX
             clean_symbol = symbol.replace('/', '')
-            tv_link = f"https://www.tradingview.com/chart/?symbol=GATEIO:{clean_symbol}"
+            tv_link = f"https://www.tradingview.com/chart/?symbol=OKX:{clean_symbol}"
 
-            # --- DÉTECTION DES OPPORTUNITÉS ---
+            # --- DÉTECTION DES DIVERGENCES ---
             
-            # OPTION 1 : OPPORTUNITÉ D'ACHAT (Opportunité de Hausse)
+            # SIGNAL D'ACHAT (Surchauffe baissière / Rebond potentiel)
             if last_rsi <= 35 and last_price > last_ema:
                 stop_loss = last_price * 0.98
                 take_profit = last_price * 1.04
@@ -91,7 +87,7 @@ def run_scanner():
                     f"🟢 **OPPORTUNITÉ D'ACHAT** : [{symbol}]({tv_link})\n"
                     f"• **Prix actuel** : `{last_price}` USDT\n"
                     f"• **Niveau d'aubaine (RSI)** : `{last_rsi:.1f}/100` (Très bas)\n"
-                    f"• **Tendance globale** : 🟢 Haussière\n"
+                    f"• **Tendance globale** : 🟢 Haussière (au-dessus EMA 200)\n"
                     f"• **Activité des acheteurs** : {vol_text}\n"
                     f"-----------------------------\n"
                     f"🎯 **Plan de Trade suggéré :**\n"
@@ -100,7 +96,7 @@ def run_scanner():
                     f"  💰 **Objectif gain (Take-Profit +4%)** : `{take_profit:.4f}`"
                 )
 
-            # OPTION 2 : OPPORTUNITÉ DE VENTE (Signal de Baisse)
+            # SIGNAL DE VENTE / CORRECTION
             elif last_rsi >= 65 and last_price < last_ema:
                 stop_loss = last_price * 1.02
                 take_profit = last_price * 0.96
@@ -109,7 +105,7 @@ def run_scanner():
                     f"🔴 **SIGNAL DE VENTE / RETRAIT** : [{symbol}]({tv_link})\n"
                     f"• **Prix actuel** : `{last_price}` USDT\n"
                     f"• **Niveau de surchauffe (RSI)** : `{last_rsi:.1f}/100` (Très haut)\n"
-                    f"• **Tendance globale** : 🔴 Baissière\n"
+                    f"• **Tendance globale** : 🔴 Baissière (sous EMA 200)\n"
                     f"• **Activité des vendeurs** : {vol_text}\n"
                     f"-----------------------------\n"
                     f"🎯 **Plan suggéré :**\n"
@@ -124,12 +120,12 @@ def run_scanner():
 
     # Envoi du bilan sur Telegram
     if alerts:
-        header = f"🚨 **ALERTES CRYPTO - DÉTECTION EN COURS** 🚨\n\n"
+        header = f"🚨 **ALERTES OKX - DÉTECTION EN COURS** 🚨\n\n"
         full_message = header + "\n\n=============================\n\n".join(alerts)
         send_telegram_alert(full_message)
         print(f"{len(alerts)} alerte(s) envoyée(s) sur Telegram.")
     else:
-        print("Scan terminé : Le marché est calme, aucune opportunité sûre détectée.")
+        print("Scan OKX terminé : Le marché est calme, aucune opportunité détectée.")
 
 if __name__ == "__main__":
     run_scanner()
